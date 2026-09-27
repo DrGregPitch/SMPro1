@@ -10,6 +10,13 @@ jobs:
     strategy: {fail-fast: false, matrix: {python-version: ["3.10", "3.11", "3.12"]}}
     steps:
       - uses: actions/checkout@v4
+      # tests download small benchmark CSVs; cache them so CI makes one network
+      # hit per runner instead of three per push, and survives mirror hiccups
+      - name: Cache benchmark datasets
+        uses: actions/cache@v4
+        with:
+          path: data_cache
+          key: leakbench-datasets-v1
       - name: Install uv
         uses: astral-sh/setup-uv@v3
         with: {enable-cache: true, cache-dependency-glob: "**/pyproject.toml"}

@@ -66,7 +66,12 @@ def main():
     res.to_csv(args.outdir / "leakage_results.csv", index=False)
 
     piv = res.pivot(index="dataset", columns="split", values="r2")[["random", "scaffold", "cluster"]]
-    piv["random_inflation_%"] = (piv["random"] - piv["scaffold"]) / piv["random"] * 100
+    # the ratio is only meaningful when the random-split model actually works;
+    # near-zero or negative random R2 would print absurd or sign-flipped
+    # percentages, so report NaN ("n/a") there instead
+    with np.errstate(all="ignore"):
+        infl = (piv["random"] - piv["scaffold"]) / piv["random"] * 100
+    piv["random_inflation_%"] = infl.where(piv["random"] >= 0.2)
     print("\nR2 by dataset and split (random inflation = how much the random split lies):")
     print(piv.round(2).to_string())
     piv.round(3).to_csv(args.outdir / "leakage_table.csv")

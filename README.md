@@ -16,7 +16,7 @@ Same model and features on three standard benchmarks — **only the split change
 | dataset | random R² | scaffold R² | cluster R² | random inflated by |
 |:---|---:|---:|---:|---:|
 | Lipophilicity (logD) | 0.68 | 0.60 | 0.52 | +12–31% |
-| ESOL (aqueous solubility) | 0.91 | 0.80 | 0.78 | +12% |
+| ESOL (aqueous solubility) | 0.92 | 0.80 | 0.77 | +12% |
 | **FreeSolv (hydration ΔG)** | **0.91** | **0.63** | 0.85 | **+31%** |
 
 FreeSolv is the cautionary tale: **R² = 0.91 on a random split, 0.63 on new scaffolds — and RMSE more than doubles, 1.26 → 3.13 kcal/mol.** A team trusting the 0.91 would ship a model that fails on novel chemistry.

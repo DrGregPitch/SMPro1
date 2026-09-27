@@ -24,7 +24,8 @@ dependencies = [
     "matplotlib>=3.7",
     "lightgbm>=4.0",
     # the honest-evaluation model ladder + calibration, reused from the polymer work
-    "polytools[gbm] @ git+https://github.com/DrGregPitch/polytools",
+    # pinned so a future polytools push cannot break this repo's installs
+    "polytools[gbm] @ git+https://github.com/DrGregPitch/polytools@74383473b2c3",
 ]
 
 [project.optional-dependencies]

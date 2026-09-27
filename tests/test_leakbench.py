@@ -69,3 +69,26 @@ def test_split_difficulty_keys(ds):
     d = split_difficulty(ds.mols, random_split(len(ds)))
     for k in ("nn_similarity_median", "frac_near_duplicate_gt_0.9", "frac_novel_lt_0.4"):
         assert k in d and 0.0 <= d[k] <= 1.0
+
+
+def test_structured_split_guards_single_dominant_group():
+    """Regression: the greedy fill must never return an empty test set.
+
+    A congeneric series (one dominant scaffold) used to put every molecule in
+    train -- scaffold_split now moves the last group to test, and a dataset
+    where ALL molecules share one scaffold raises instead of silently
+    returning an unusable split.
+    """
+    from rdkit import Chem
+
+    # two scaffolds, 5 molecules each: with frac_train=0.8 the old code put
+    # both groups in train (5 < 8 both times) and returned an empty test
+    benzenes = [Chem.MolFromSmiles(f"c1ccccc1{'C' * i}") for i in range(1, 6)]
+    pyridines = [Chem.MolFromSmiles(f"c1ccncc1{'C' * i}") for i in range(1, 6)]
+    sp = scaffold_split(benzenes + pyridines, frac_train=0.8)
+    assert len(sp.test) > 0 and len(sp.train) > 0
+    assert len(sp.train) + len(sp.test) == 10
+
+    # single scaffold for every molecule -> loud failure, not an empty test
+    with pytest.raises(ValueError):
+        scaffold_split(benzenes, frac_train=0.8)

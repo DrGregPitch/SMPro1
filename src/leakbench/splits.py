@@ -57,6 +57,35 @@ def _fps(mols):
     return [_GEN.GetFingerprint(m) for m in mols]
 
 
+def _greedy_group_split(groups: list[list[int]], n: int, frac_train: float) -> Split:
+    """Assign whole groups to train until the quota is met, the rest to test.
+
+    Guards the degenerate case where the groups run out before train passes the
+    quota (e.g. a congeneric series where one scaffold dominates): the last group
+    is moved to test so the split is always usable, and a dataset with a single
+    group raises rather than silently returning an empty test set.
+    """
+    train: list[list[int]] = []
+    test: list[list[int]] = []
+    filled = 0
+    cutoff = frac_train * n
+    for g in sorted(groups, key=len, reverse=True):
+        if filled < cutoff:
+            train.append(g)
+            filled += len(g)
+        else:
+            test.append(g)
+    if not test:
+        if len(train) < 2:
+            raise ValueError(
+                "all molecules fall in a single scaffold/cluster group; "
+                "a structured split is impossible for this dataset"
+            )
+        test.append(train.pop())  # smallest train group becomes the test set
+    flat = lambda gs: np.asarray([i for g in gs for i in g], int)  # noqa: E731
+    return Split(train=flat(train), test=flat(test))
+
+
 def scaffold_split(mols: Sequence, frac_train: float = 0.8) -> Split:
     """Bemis-Murcko scaffold split -- the field-standard structured split.
 
@@ -68,12 +97,7 @@ def scaffold_split(mols: Sequence, frac_train: float = 0.8) -> Split:
     for i, m in enumerate(mols):
         scaf = MurckoScaffold.MurckoScaffoldSmiles(mol=m) if m is not None else ""
         groups[scaf].append(i)
-    train: list[int] = []
-    test: list[int] = []
-    cutoff = frac_train * len(mols)
-    for g in sorted(groups.values(), key=len, reverse=True):
-        (train if len(train) < cutoff else test).extend(g)
-    return Split(train=np.asarray(train, int), test=np.asarray(test, int))
+    return _greedy_group_split(list(groups.values()), len(mols), frac_train)
 
 
 def cluster_split(mols: Sequence, frac_train: float = 0.8, cutoff: float = 0.6) -> Split:
@@ -90,12 +114,7 @@ def cluster_split(mols: Sequence, frac_train: float = 0.8, cutoff: float = 0.6) 
         sims = DataStructs.BulkTanimotoSimilarity(fps[i], fps[:i])
         dists.extend(1.0 - s for s in sims)
     clusters = Butina.ClusterData(dists, n, cutoff, isDistData=True)
-    train: list[int] = []
-    test: list[int] = []
-    ct = frac_train * n
-    for c in sorted(clusters, key=len, reverse=True):
-        (train if len(train) < ct else test).extend(c)
-    return Split(train=np.asarray(train, int), test=np.asarray(test, int))
+    return _greedy_group_split([list(c) for c in clusters], n, frac_train)
 
 
 def split_difficulty(mols: Sequence, split: Split) -> dict[str, float]:

@@ -72,41 +72,69 @@ class MoleculeDataset:
 
 
 def _fetch(remote: str, cache: Path) -> Path:
+    """Download once, atomically: write to a temp file, then rename.
+
+    ``urlretrieve`` straight to the final path leaves a truncated file behind if
+    the connection drops, and every later call would trust the corrupt cache.
+    """
     cache.mkdir(parents=True, exist_ok=True)
     dest = cache / remote
     if not dest.exists():
-        urllib.request.urlretrieve(_MIRROR + remote, dest)  # noqa: S310 - trusted https
+        tmp = dest.with_suffix(dest.suffix + ".part")
+        urllib.request.urlretrieve(_MIRROR + remote, tmp)  # noqa: S310 - trusted https
+        tmp.rename(dest)
     return dest
 
 
 def load_dataset(name: str, cache: str | Path = "data_cache") -> MoleculeDataset:
-    """Download (once), parse, canonicalize, and de-duplicate a benchmark dataset."""
+    """Download (once), parse, canonicalize, and de-duplicate a benchmark dataset.
+
+    Duplicate measurements of the same canonical SMILES are aggregated by
+    **median** -- keeping whichever row happened to come first would make results
+    depend on source-file row order, which is exactly the kind of silent
+    arbitrariness this package exists to call out.
+    """
     if name not in DATASETS:
         raise KeyError(f"unknown dataset {name!r}; choose from {list(DATASETS)}")
     remote, scol, ycol, units, note = DATASETS[name]
     df = pd.read_csv(_fetch(remote, Path(cache)))
     n_raw = len(df)
     df = df.dropna(subset=[scol, ycol])
+    n_dropped_na = n_raw - len(df)
 
-    canon, mols, ys, seen = [], [], [], {}
+    values: dict[str, list[float]] = {}
+    first_mol: dict[str, object] = {}
     n_bad = 0
+    n_nonnumeric = 0
     for smi, yv in zip(df[scol].astype(str), pd.to_numeric(df[ycol], errors="coerce")):
         if not np.isfinite(yv):
+            n_nonnumeric += 1
             continue
         m = Chem.MolFromSmiles(smi)
         if m is None:
             n_bad += 1
             continue
         cs = Chem.MolToSmiles(m)
-        if cs in seen:                     # de-duplicate on canonical form
-            continue
-        seen[cs] = True
-        canon.append(cs)
-        mols.append(m)
-        ys.append(float(yv))
+        if cs not in values:
+            values[cs] = []
+            first_mol[cs] = m
+        values[cs].append(float(yv))
 
-    report = {"rows_in_file": n_raw, "dropped_unparseable": n_bad,
-              "rows_final": len(canon), "duplicates_removed": len(df) - n_bad - len(canon)}
+    canon = list(values)
+    mols = [first_mol[cs] for cs in canon]
+    ys = [float(np.median(values[cs])) for cs in canon]
+    n_dupes = sum(len(v) - 1 for v in values.values())
+
+    report = {
+        "rows_in_file": n_raw,
+        "dropped_missing": n_dropped_na,
+        "dropped_nonnumeric_target": n_nonnumeric,
+        "dropped_unparseable": n_bad,
+        "duplicate_measurements_aggregated": n_dupes,
+        "rows_final": len(canon),
+    }
+    # reconciliation invariant: everything is accounted for
+    assert n_raw == n_dropped_na + n_nonnumeric + n_bad + n_dupes + len(canon)
     return MoleculeDataset(
         smiles=np.array(canon, dtype=object), y=np.asarray(ys, dtype=float),
         mols=mols, name=name, target_name=ycol, units=units, note=note, report=report,
