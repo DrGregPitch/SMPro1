@@ -1,6 +1,6 @@
 # leakbench
 
-**Honest evaluation for drug-discovery molecular property prediction — how much a random split lies, measured.**
+**Honest evaluation for drug-discovery ML — property prediction and binding affinity, with the leakage measured instead of assumed.**
 
 ![CI](https://github.com/DrGregPitch/leakbench/actions/workflows/ci.yml/badge.svg)
 &nbsp;·&nbsp; MIT &nbsp;·&nbsp; Python 3.10–3.12
@@ -52,6 +52,33 @@ Datasets are the canonical MoleculeNet / Therapeutics Data Commons regression se
 - **Model ladder + calibration, reused from [`polytools`](https://github.com/DrGregPitch/polytools)** — the same honest-evaluation infrastructure built for polymers works unchanged on drug-like molecules, because a feature matrix doesn't care what kind of molecule it came from. Gradient boosting on ECFP + medicinal-chemistry descriptors, with deep-ensemble uncertainty and a `SigmaRecalibrator`.
 - **Med-chem featurization** (`featurize.py`) — ECFP4 fingerprints + the descriptor block a chemist reads off a structure (MolWt, LogP, TPSA, HBD/HBA, …). Deliberately classical, so no fancy model can hide a leaky split behind an impressive number.
 
+---
+
+## Binding affinity: where does the performance actually come from?
+
+Property prediction leaks through *similar molecules*. Drug–target **binding affinity** leaks through something worse: a pair can leak through *either side*. On a random split of (drug, target) pairs, a model can score well by memorizing each drug's promiscuity and each target's affinity level — without learning anything about the interaction between them. The 2026 literature (HonestAffinity, PDBbind CleanSplit) is largely about catching this.
+
+`leakbench.dti` catches it two ways, on the **DAVIS** kinase panel (68 inhibitors × ~379 kinases, dissociation constants; pKd is a free energy, ΔG = −RT ln Kd, ≈1.36 kcal/mol per unit):
+
+1. **Single-sided baselines** — a **protein-only** and a **ligand-only** model. Neither can see the interaction, so any score they earn is memorization *by construction*.
+2. **Cold splits** — hold out drugs, targets, or both, so "will it work on new chemistry / a new target?" is actually the question asked.
+
+![On a random pair split a ligand-only model — which never sees the target — scores R²=0.29; cold splits collapse everything toward zero.](assets/binding_leakage.png)
+
+| model | random pair | cold drug | cold target | cold both |
+|:---|---:|---:|---:|---:|
+| protein-only (memorization) | 0.07 | 0.08 | −0.00 | 0.00 |
+| ligand-only (memorization) | 0.29 | −0.06 | 0.30 | −0.04 |
+| **full (ligand + protein)** | **0.53** | **0.09** | **0.36** | **0.02** |
+
+*Test R² on pKd.* Three things a single random-split number would have hidden:
+
+- **The full model's 0.53 is mostly not interaction.** A ligand-only model — which literally never sees the protein it is scoring against — reaches 0.29 on the same split. The *interaction gap* (full minus the best single-sided baseline) is only **+0.25**.
+- **Cold-both is essentially unsolved.** For a genuinely new drug against a new target, every model sits at R² ≈ 0. That is the honest state of ligand-based binding prediction, and it is the deployment scenario that matters.
+- **The asymmetry is the tell, and it's the dataset's shape.** On `cold_target`, ligand-only (0.30) nearly matches full (0.36): with only 68 drugs — all seen in training — the model rides drug identity. On `cold_drug`, ligand-only goes *negative*: new chemistry breaks the memorization it was leaning on. Which side leaks depends on which side is small.
+
+Run it: `python scripts/run_binding_benchmark.py`.
+
 ## Part of a portfolio
 
 `leakbench` extends the honest-evaluation thesis from polymers into drug discovery. Companion repos:
@@ -62,7 +89,7 @@ Datasets are the canonical MoleculeNet / Therapeutics Data Commons regression se
 
 ## Limitations
 
-Ligand-based only (no protein / 3D structure — that's the next tier). Three regression benchmarks, chosen to make the leakage point cleanly; the effect is systematic but its size is dataset-dependent. Scaffold and cluster splits are strong structured splits but not the last word — time-based and target-based splits stress a model differently.
+Binding uses sequence-composition protein features, not 3D structure or docking — that's the next tier. DAVIS is a single kinase panel censored at pKd 5 (mostly non-binders), and the property benchmarks are three regression sets chosen to make the leakage point cleanly: the leakage *pattern* is general, the exact numbers are dataset-specific. Scaffold and cluster splits are strong structured splits but not the last word — time-based splits stress a model differently again.
 
 ## License
 

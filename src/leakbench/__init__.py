@@ -12,6 +12,13 @@ same object at a different scale.
 """
 
 from .data import DATASETS, MoleculeDataset, load_dataset
+from .dti import (
+    DTIDataset,
+    load_davis,
+    pair_features,
+    pair_split,
+    pair_split_report,
+)
 from .featurize import descriptors, featurize, morgan
 from .splits import (
     SPLITTERS,
@@ -30,4 +37,5 @@ __all__ = [
     "featurize", "morgan", "descriptors",
     "Split", "random_split", "scaffold_split", "cluster_split",
     "split_difficulty", "SPLITTERS",
+    "DTIDataset", "load_davis", "pair_features", "pair_split", "pair_split_report",
 ]
