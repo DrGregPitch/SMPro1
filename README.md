@@ -1,6 +1,8 @@
 # SMPro1
 
-**Honest evaluation for drug-discovery ML — property prediction and binding affinity, with the leakage measured instead of assumed.**
+*Small Molecule–Protein, project 1.*
+
+**Honest evaluation for drug-discovery ML — small-molecule property prediction and small-molecule–protein binding affinity, with the leakage measured instead of assumed.**
 
 ![CI](https://github.com/DrGregPitch/SMPro1/actions/workflows/ci.yml/badge.svg)
 &nbsp;·&nbsp; MIT &nbsp;·&nbsp; Python 3.10–3.12
