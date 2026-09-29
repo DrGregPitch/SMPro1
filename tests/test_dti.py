@@ -21,7 +21,11 @@ from smpro1.dti import (
 
 @pytest.fixture(scope="module")
 def ds():
-    return load_davis()
+    from urllib.error import URLError
+    try:
+        return load_davis()
+    except (URLError, OSError) as e:  # data host unreachable / offline CI
+        pytest.skip(f"DAVIS dataset unreachable ({e}); skipping network-dependent DTI tests")
 
 
 def test_davis_loads_and_reconciles(ds):

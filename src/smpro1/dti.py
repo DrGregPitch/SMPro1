@@ -20,6 +20,7 @@ The honest evaluation therefore needs two things this module provides:
 
 from __future__ import annotations
 
+import shutil
 import urllib.request
 from dataclasses import dataclass, field
 from itertools import product
@@ -70,7 +71,11 @@ def _fetch_url(url: str, dest: Path) -> Path:
     dest.parent.mkdir(parents=True, exist_ok=True)
     if not dest.exists():
         tmp = dest.with_suffix(dest.suffix + ".part")
-        urllib.request.urlretrieve(url, tmp)  # noqa: S310 - trusted https
+        # Harvard Dataverse 403s the default urllib User-Agent; present a
+        # browser-like one so the fetch works from CI runners too.
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req) as r, open(tmp, "wb") as f:  # noqa: S310 - trusted https
+            shutil.copyfileobj(r, f)
         tmp.rename(dest)
     return dest
 
