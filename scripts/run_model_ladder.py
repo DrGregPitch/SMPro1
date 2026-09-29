@@ -28,7 +28,7 @@ from polytools import (
 )
 from polytools.metrics import calibration_curve
 
-from leakbench import featurize, load_dataset, scaffold_split
+from smpro1 import featurize, load_dataset, scaffold_split
 
 
 def main():

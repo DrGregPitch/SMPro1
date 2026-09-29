@@ -18,7 +18,7 @@ import numpy as np
 import pandas as pd
 from polytools import GBMRegressor, regression_metrics
 
-from leakbench import (
+from smpro1 import (
     cluster_split,
     featurize,
     load_dataset,

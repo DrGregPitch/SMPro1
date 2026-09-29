@@ -1,4 +1,4 @@
-"""Tests for leakbench, organised by the invariant they protect.
+"""Tests for smpro1, organised by the invariant they protect.
 
 The load-bearing test is ``test_structured_splits_are_harder_than_random`` -- the
 whole thesis of the repository is that a structured split is measurably less leaky
@@ -10,7 +10,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from leakbench import (
+from smpro1 import (
     cluster_split,
     featurize,
     load_dataset,

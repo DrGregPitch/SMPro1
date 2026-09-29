@@ -10,7 +10,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from leakbench.dti import (
+from smpro1.dti import (
     load_davis,
     pair_features,
     pair_split,

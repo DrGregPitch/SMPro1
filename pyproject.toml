@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "leakbench"
+name = "smpro1"
 version = "0.1.0"
 description = "Honest evaluation for drug-discovery molecular property prediction: how much random splits inflate, measured."
 readme = "README.md"
@@ -32,10 +32,10 @@ dependencies = [
 dev = ["pytest>=7.4", "ruff>=0.4"]
 
 [project.urls]
-Homepage = "https://github.com/DrGregPitch/leakbench"
+Homepage = "https://github.com/DrGregPitch/SMPro1"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/leakbench"]
+packages = ["src/smpro1"]
 
 [tool.hatch.metadata]
 allow-direct-references = true

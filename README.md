@@ -1,11 +1,11 @@
-# leakbench
+# SMPro1
 
 **Honest evaluation for drug-discovery ML — property prediction and binding affinity, with the leakage measured instead of assumed.**
 
-![CI](https://github.com/DrGregPitch/leakbench/actions/workflows/ci.yml/badge.svg)
+![CI](https://github.com/DrGregPitch/SMPro1/actions/workflows/ci.yml/badge.svg)
 &nbsp;·&nbsp; MIT &nbsp;·&nbsp; Python 3.10–3.12
 
-A molecular ML model that looks excellent on a random train/test split can be nearly useless on the next chemical series a project actually wants to make. Chemical datasets are dense with near-duplicate analogues, so a random test set almost always has a close cousin in training — the model interpolates and the score is inflated. This is the problem a wave of 2026 work is built around (*HonestAffinity*, PDBbind **CleanSplit**, *Systematic Data Leakage in Protein-Ligand Benchmarks*). `leakbench` measures it, and reports the number that survives it.
+A molecular ML model that looks excellent on a random train/test split can be nearly useless on the next chemical series a project actually wants to make. Chemical datasets are dense with near-duplicate analogues, so a random test set almost always has a close cousin in training — the model interpolates and the score is inflated. This is the problem a wave of 2026 work is built around (*HonestAffinity*, PDBbind **CleanSplit**, *Systematic Data Leakage in Protein-Ligand Benchmarks*). `smpro1` measures it, and reports the number that survives it.
 
 ![Random splits inflate drug-property models across every benchmark; the structured-split bars are the honest numbers.](assets/leakage.png)
 
@@ -38,7 +38,7 @@ The inflation is **largest for the most physical target.** Hydration free energy
 ## Run it
 
 ```bash
-git clone https://github.com/DrGregPitch/leakbench && cd leakbench
+git clone https://github.com/DrGregPitch/SMPro1 && cd SMPro1
 uv venv && uv pip install -e ".[dev]"        # pulls the model ladder from polytools
 uv run python scripts/run_leakage_benchmark.py --outdir results   # ~1 min: table + figure
 uv run pytest tests -v
@@ -58,7 +58,7 @@ Datasets are the canonical MoleculeNet / Therapeutics Data Commons regression se
 
 Property prediction leaks through *similar molecules*. Drug–target **binding affinity** leaks through something worse: a pair can leak through *either side*. On a random split of (drug, target) pairs, a model can score well by memorizing each drug's promiscuity and each target's affinity level — without learning anything about the interaction between them. The 2026 literature (HonestAffinity, PDBbind CleanSplit) is largely about catching this.
 
-`leakbench.dti` catches it two ways, on the **DAVIS** kinase panel (68 inhibitors × ~379 kinases, dissociation constants; pKd is a free energy, ΔG = −RT ln Kd, ≈1.36 kcal/mol per unit):
+`smpro1.dti` catches it two ways, on the **DAVIS** kinase panel (68 inhibitors × ~379 kinases, dissociation constants; pKd is a free energy, ΔG = −RT ln Kd, ≈1.36 kcal/mol per unit):
 
 1. **Single-sided baselines** — a **protein-only** and a **ligand-only** model. Neither can see the interaction, so any score they earn is memorization *by construction*.
 2. **Cold splits** — hold out drugs, targets, or both, so "will it work on new chemistry / a new target?" is actually the question asked.
@@ -81,7 +81,7 @@ Run it: `python scripts/run_binding_benchmark.py`.
 
 ## Part of a portfolio
 
-`leakbench` extends the honest-evaluation thesis from polymers into drug discovery. Companion repos:
+`smpro1` extends the honest-evaluation thesis from polymers into drug discovery. Companion repos:
 
 - [**polytools**](https://github.com/DrGregPitch/polytools) — the harness this reuses; polymer property prediction.
 - [**copolybench**](https://github.com/DrGregPitch/copolybench) — copolymer representation learning.

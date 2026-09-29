@@ -1,4 +1,4 @@
-"""leakbench -- honest evaluation for drug-discovery molecular property prediction.
+"""smpro1 -- honest evaluation for drug-discovery molecular property prediction.
 
 A random train/test split flatters a molecular model because chemical datasets are
 dense with near-duplicate analogues. This package measures that leakage and reports

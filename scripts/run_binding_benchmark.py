@@ -26,7 +26,7 @@ import numpy as np
 import pandas as pd
 from polytools import GBMRegressor, regression_metrics
 
-from leakbench.dti import load_davis, pair_features, pair_split, pair_split_report
+from smpro1.dti import load_davis, pair_features, pair_split, pair_split_report
 
 MODELS = ["protein_only", "ligand_only", "full"]
 SPLITS = ["random_pair", "cold_drug", "cold_target", "cold_both"]
