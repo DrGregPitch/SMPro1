@@ -52,8 +52,20 @@ def morgan(mols: Sequence[Chem.Mol], n_bits: int = 2048, counts: bool = True) ->
     return out
 
 
-def descriptors(mols: Sequence[Chem.Mol]) -> np.ndarray:
-    """Curated med-chem descriptor block, NaN-imputed by column median."""
+def descriptors(mols: Sequence[Chem.Mol], impute_idx: Sequence[int] | None = None) -> np.ndarray:
+    """Curated med-chem descriptor block, NaN-imputed by column median.
+
+    ``impute_idx`` selects the rows the imputation median is computed from -- pass
+    the TRAIN indices. An imputation statistic is a fitted parameter, so taking it
+    over the whole dataset lets test molecules influence the values the model is
+    trained on. That is textbook leakage even though it is tiny, and in a repository
+    whose subject is leakage it is the first thing a reader will check.
+
+    Defaults to every row, which reproduces the earlier behaviour for callers that
+    have no split to hand. In practice none of the bundled datasets produce a single
+    NaN, so the two paths agree numerically -- the point is that the code no longer
+    depends on that being true.
+    """
     out = np.zeros((len(mols), len(_DESCRIPTORS)), dtype=np.float64)
     for i, m in enumerate(mols):
         for j, (_, fn) in enumerate(_DESCRIPTORS):
@@ -62,22 +74,29 @@ def descriptors(mols: Sequence[Chem.Mol]) -> np.ndarray:
             except Exception:
                 v = np.nan
             out[i, j] = v if np.isfinite(v) else np.nan
-    col_med = np.nanmedian(out, axis=0)
+    ref = out if impute_idx is None else out[np.asarray(impute_idx, int)]
+    with np.errstate(all="ignore"):
+        col_med = np.nanmedian(ref, axis=0)
     col_med = np.where(np.isfinite(col_med), col_med, 0.0)
     bad = np.where(~np.isfinite(out))
     out[bad] = np.take(col_med, bad[1])
     return out
 
 
-def featurize(mols: Sequence[Chem.Mol], kind: str = "ecfp+desc",
-              n_bits: int = 2048) -> tuple[np.ndarray, list[str]]:
-    """Return ``(X, feature_names)`` for ``"ecfp"``, ``"desc"``, or ``"ecfp+desc"``."""
+def featurize(mols: Sequence[Chem.Mol], kind: str = "ecfp+desc", n_bits: int = 2048,
+              impute_idx: Sequence[int] | None = None) -> tuple[np.ndarray, list[str]]:
+    """Return ``(X, feature_names)`` for ``"ecfp"``, ``"desc"``, or ``"ecfp+desc"``.
+
+    ``impute_idx`` is forwarded to :func:`descriptors`; pass the train indices so the
+    descriptor imputation is fitted on training rows only. Fingerprints are computed
+    per molecule and need no such care.
+    """
     if kind == "ecfp":
         return morgan(mols, n_bits), [f"ecfp_{i}" for i in range(n_bits)]
     if kind == "desc":
-        return descriptors(mols), list(DESCRIPTOR_NAMES)
+        return descriptors(mols, impute_idx), list(DESCRIPTOR_NAMES)
     if kind == "ecfp+desc":
-        X = np.hstack([morgan(mols, n_bits), descriptors(mols)])
+        X = np.hstack([morgan(mols, n_bits), descriptors(mols, impute_idx)])
         names = [f"ecfp_{i}" for i in range(n_bits)] + list(DESCRIPTOR_NAMES)
         return X, names
     raise ValueError(f"unknown featurizer kind {kind!r}")
