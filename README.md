@@ -17,25 +17,58 @@ Same model and features on three standard benchmarks — **only the split change
 
 | dataset | random R² | scaffold R² | cluster R² | random inflated by |
 |:---|---:|---:|---:|---:|
-| Lipophilicity (logD) | 0.68 | 0.60 | 0.52 | +12–31% |
-| ESOL (aqueous solubility) | 0.92 | 0.80 | 0.77 | +12% |
-| **FreeSolv (hydration ΔG)** | **0.91** | **0.63** | 0.85 | **+31%** |
+| Lipophilicity (logD) | 0.71 ± 0.03 | 0.60 | 0.52 | +16 ± 3% |
+| ESOL (aqueous solubility) | 0.91 ± 0.01 | 0.80 | 0.77 | +11 ± 1% |
+| **FreeSolv (hydration ΔG)** | **0.92 ± 0.02** | **0.63** | 0.85 | **+32 ± 1%** |
 
-FreeSolv is the cautionary tale: **R² = 0.91 on a random split, 0.63 on new scaffolds — and RMSE more than doubles, 1.26 → 3.13 kcal/mol.** A team trusting the 0.91 would ship a model that fails on novel chemistry.
+Random splits are re-drawn over 5 seeds and reported as mean ± sd; scaffold and cluster splits are deterministic, so they are single values. Inflation is quoted against the scaffold split.
 
-The leakage is not asserted, it's measured. `split_difficulty()` reports how far each test set really sits from training:
+FreeSolv is the cautionary tale: **R² = 0.92 on a random split, 0.63 on new scaffolds — and RMSE nearly triples, 1.09 → 3.13 kcal/mol.** A team trusting the 0.92 would ship a model that fails on novel chemistry.
+
+The leakage is not asserted, it's measured. `split_difficulty()` reports how far each test set really sits from training. Ranges span the three datasets:
 
 | split | median nearest-neighbour similarity to train | test with a >0.9 near-duplicate in train |
 |:---|---:|---:|
-| random | ~0.53 | **6–8%** |
-| scaffold | ~0.30 | 0–1% |
-| cluster | ~0.32 | 0% |
+| random | 0.54 – 0.70 | **7 – 10%** |
+| scaffold | 0.22 – 0.52 | 0 – 3% |
+| cluster | 0.32 – 0.33 | 0% |
+
+Those are ranges rather than averages because the spread is itself the point: a scaffold split is not uniformly hard. On Lipophilicity it still leaves 3% of the test set with a near-twin in training at a median similarity of 0.52; on FreeSolv it reaches 0.22 with no near-duplicates at all.
 
 The random split leaks — several percent of its test set has a near-twin in training — which is exactly why its scores are inflated.
 
-## A physical-chemistry reading
+## "Which split is hardest" has no single answer — and that is the finding
 
-The inflation is **largest for the most physical target.** Hydration free energy (FreeSolv) is a literal ΔG — an interaction energy set by specific functional groups and geometry — so a genuinely new scaffold changes it in ways an interpolating model can't see, and the honest (scaffold) score drops hardest. Solubility and lipophilicity are softer, smoother functions of structure, and leak less. Binding affinity, molecular stability, and glass-transition temperature are the same object at other scales: **a free energy over a geometry.** Evaluating any of them on a random split measures memorisation, not the physics.
+It is tempting to read the table as *the most physical target leaks most*: hydration
+free energy is a literal ΔG, so a genuinely new scaffold should break an interpolating
+model hardest. That reading does not survive its own data. Measure the same inflation
+against the **cluster** split instead and the ordering reverses completely:
+
+| dataset | vs scaffold | vs cluster |
+|:---|---:|---:|
+| **FreeSolv** (hydration ΔG) | **+32%** | **+7%** |
+| ESOL (solubility) | +11% | +15% |
+| Lipophilicity (logD) | +16% | +27% |
+
+FreeSolv goes from the most-inflated dataset to the **least**. A target that were
+intrinsically hard to extrapolate across chemistry would be punished by both
+structured splits; FreeSolv is punished by only one.
+
+The mechanical reason is specific and worth knowing before trusting any scaffold
+number: **half of FreeSolv has no scaffold at all.** 320 of its 642 molecules are
+acyclic, so Bemis–Murcko assigns them all the empty scaffold, they form one group,
+and that group lands in train. The FreeSolv "scaffold split" is therefore largely an
+acyclic → cyclic extrapolation, which is why it is the most severe split measured
+here (nearest-neighbour similarity 0.22, no near-duplicates) while its cluster split
+is unremarkable (0.33, in line with the others).
+
+So the honest conclusion is not about which target is most physical. It is that
+**"we used a scaffold split" does not name a difficulty.** The same three words mean
+a 0.52-similarity test set on Lipophilicity and a 0.22-similarity one on FreeSolv,
+and the inflation you report follows the split you happened to pick. Report more than
+one structured split, and report `split_difficulty()` alongside it, or the number is
+not interpretable — which is the whole argument of this repository, arriving from a
+direction I did not expect.
 
 ## Run it
 
